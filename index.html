@@ -356,8 +356,8 @@ function seed(){return{users:[
 {u:'driver2',p:'1234',role:'driver',name:'محمد'}],
 zones:[{id:'center',name:'وسط البلاد',fee:15,fixed:1},{id:'sub',name:'ضواحي طرابلس',fee:25,fixed:1},
 {id:'x1',name:'مصراتة',fee:45},{id:'x2',name:'الزاوية',fee:35}],
-orders:[],next:1001,archive:[],period:ym(new Date()),closedFor:'',retPct:0}}
-function load(){try{var r=localStorage.getItem(K);if(r)return JSON.parse(r)}catch(e){}return seed()}
+orders:[],next:1001,archive:[],period:ym(new Date()),closedFor:'',retPct:100}}
+function load(){try{var r=localStorage.getItem(K);if(r){var d=JSON.parse(r);if(!d.retSet&&!d.retPct)d.retPct=100;return d}}catch(e){}return seed()}
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function zn(id){return S.zones.filter(function(z){return z.id==id})[0]||{name:'—',fee:0}}
@@ -464,7 +464,7 @@ function pickR(b){FR=REASONS[+b.dataset.i];[].forEach.call(document.querySelecto
 function doFail(id){var o=findO(id);if(!o||!FR)return;o.status='failed';o.reason=FR;lg(o,{s:'failed',r:FR});save();closeSheet();render();toast('تم تسجيل الفشل، سلّم الشحنة للمكتب')}
 function saveRet(x){var v=(typeof x=='number')?x:+document.getElementById('rp').value;
   if(!(v>=0&&v<=100)){toast('أدخل نسبة بين 0 و100');return}
-  S.retPct=v;save();render();toast(v?'تم حفظ رسوم الراجع: '+v+'% من رسوم التوصيل':'تم إلغاء رسوم الراجع')}
+  S.retPct=v;S.retSet=1;save();render();toast(v?'تم حفظ رسوم الراجع: '+v+'% من رسوم التوصيل':'تم إلغاء رسوم الراجع')}
 function saveZone(id){var v=+document.getElementById('z'+id).value;if(!(v>0)){toast('أدخل سعراً صحيحاً');return}zn(id).fee=v;save();render();toast('تم حفظ السعر')}
 function addZone(){var n=document.getElementById('zn').value.trim(),v=+document.getElementById('zf').value;
   if(!n||!(v>0)){toast('أدخل اسم المدينة وسعر التوصيل');return}
@@ -588,10 +588,10 @@ function finS(){
   (rows.length?sec('تفاصيل الطلبات',tbl(['الكود','المحصّل','التوصيل','الصافي'],rows,'<tr><td>الإجمالي</td><td>'+fm(c)+'</td><td>'+fm(f+rf)+'</td><td>'+fm(net)+'</td></tr>')):
    '<section class="card">'+empty('wallet','لا توجد طلبات مسلّمة بعد','يظهر هنا المبلغ المستحق لك بعد تسليم أول طلب.')+'</section>')}
 function retSec(){var p=S.retPct||0,ex=retFee({fee:15});
-  return '<section class="card"><h2 class="ct">رسوم الراجع</h2><p class="mu" style="margin-bottom:12px">نسبة من رسوم التوصيل تُحسب على المتجر عندما يُرجَع إليه الطلب. تُقسم 20% للمكتب و80% للمندوب.</p>'+
+  return '<section class="card"><h2 class="ct">رسوم الراجع</h2><p class="mu" style="margin-bottom:12px">رسوم التوصيل مستحقة حتى لو لم يستلم الزبون الطلب، فتُحسب على المتجر عندما يُرجَع إليه، بغض النظر عن سبب الفشل. تُقسم 20% للمكتب و80% للمندوب.</p>'+
   '<div class="chips2" style="margin-bottom:12px">'+[0,50,100].map(function(v){return '<button type="button" class="chp'+(p==v?' on':'')+'" data-v="'+v+'" onclick="saveRet(+this.dataset.v)">'+(v?v+'%':'بدون رسوم')+'</button>'}).join('')+'</div>'+
   '<div class="zc-f"><input id="rp" type="number" min="0" max="100" value="'+p+'" aria-label="نسبة رسوم الراجع"><span class="mu">%</span><button type="button" class="btn sm pri" onclick="saveRet()">حفظ</button></div>'+
-  '<p class="mu" style="margin-top:10px">'+(p?'مثال: طلب في وسط البلاد (15 د.ل) يُرجَع، تُحسب على المتجر '+num(ex.f)+' د.ل.':'الرواجع حالياً بدون رسوم على المتجر.')+'</p></section>'}
+  '<p class="mu" style="margin-top:10px">'+(p?'مثال: طلب في وسط البلاد (رسوم توصيله 15 د.ل) يُرجَع، تُحسب على المتجر '+num(ex.f)+' د.ل.':'الرواجع حالياً بدون رسوم على المتجر.')+'</p></section>'}
 function heldHtml(){var rt=S.orders.filter(function(o){return o.driver==U.u&&o.status=='failed'});if(!rt.length)return '';
   return '<section class="card ret"><h2 class="ct">رواجع بحوزتك ('+rt.length+')</h2><p class="mu" style="margin-bottom:6px">سلّم هذه الشحنات لمكتب عين الفرس ليؤكد استلامها.</p>'+
   rt.map(function(o){return '<div class="urow"><span class="code">'+esc(o.id)+'</span><div class="ut"><b>'+esc(o.cust)+'</b><span class="mu">للمتجر '+esc(un(o.store))+(o.reason?' · '+esc(o.reason):'')+'</span></div></div>'}).join('')+'</section>'}
