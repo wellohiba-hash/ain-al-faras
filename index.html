@@ -503,13 +503,16 @@ function doLive(){var v=document.getElementById('lpw').value.trim();if(v.length<
   var demo={store1:1,store2:1,driver1:1,driver2:1};
   S.users=S.users.filter(function(a){return !(demo[a.u]&&a.p=='1234')});usr('admin').p=v;
   S.orders=[];S.archive=[];S.setl=[];S.next=1001;S.period=ym(new Date());S.closedFor='';save();closeSheet();render();toast('بدأ التشغيل الفعلي، أضف حسابات المتاجر والمندوبين')}
-function backup(){try{var b=new Blob([JSON.stringify(S)],{type:'application/json'}),a=document.createElement('a'),url=URL.createObjectURL(b);
-  a.href=url;a.download='ain-al-faras-'+ym(new Date())+'-'+String(new Date().getDate()).padStart(2,'0')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},3000);
-  S.bk=Date.now();save();render();toast('تم تنزيل النسخة الاحتياطية')}catch(e){toast('تعذّر تنزيل النسخة')}}
+function backup(){var txt=JSON.stringify(S),name='ain-al-faras-'+ym(new Date())+'-'+String(new Date().getDate()).padStart(2,'0')+'.json',
+  done=function(){S.bk=Date.now();save();if(!SH)render();toast('تم تنزيل النسخة الاحتياطية')},bad=function(){toast('تعذّر تنزيل النسخة')};
+  var plain=function(){try{var a=document.createElement('a'),url=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},3000);done()}catch(e){bad()}};
+  if(window.claude&&typeof window.claude.use=='function'){window.claude.use('downloads').then(function(d){if(!d){bad();return}
+    return d.save({filename:name,data:txt}).then(done,function(e){if(!e||e.code!='declined')bad()})},bad)}
+  else plain()}
 function restore(inp){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();
   r.onload=function(){var d=null;try{d=JSON.parse(r.result)}catch(e){}
     if(!d||!Array.isArray(d.users)||!Array.isArray(d.orders)||!Array.isArray(d.zones)||!d.users.some(function(a){return a&&a.role=='admin'&&a.u&&a.p})){toast('الملف ليس نسخة احتياطية صحيحة');return}
-    ask('استرجاع هذه النسخة؟ تُستبدل كل البيانات الحالية. في النسخة '+d.orders.length+' طلب.',function(){d.archive=d.archive||[];d.next=d.next||1001;d.period=d.period||ym(new Date());S=d;save();out();toast('تم استرجاع النسخة، سجّل الدخول من جديد')},'danger','استرجاع')};
+    ask('استرجاع هذه النسخة؟ تُستبدل كل البيانات الحالية. عدد الطلبات في النسخة: '+d.orders.length+'.',function(){d.archive=d.archive||[];d.next=d.next||1001;d.period=d.period||ym(new Date());S=d;save();out();toast('تم استرجاع النسخة، سجّل الدخول من جديد')},'danger','استرجاع')};
   r.readAsText(f);inp.value=''}
 function saveRet(x){var v=(typeof x=='number')?x:+document.getElementById('rp').value;
   if(!(v>=0&&v<=100)){toast('أدخل نسبة بين 0 و100');return}
@@ -520,7 +523,7 @@ function addZone(){var n=document.getElementById('zn').value.trim(),v=+document.
   S.zones.push({id:'x'+Date.now(),name:n,fee:v});save();render();toast('تمت إضافة '+n)}
 function delZone(id){ask('حذف هذه المدينة؟ الطلبات القديمة لا تتأثر.',function(){S.zones=S.zones.filter(function(z){return z.id!=id});save();render()},'danger','حذف')}
 function manualClose(){var n=S.orders.filter(function(o){return dDue(o)||sDue(o)}).length;
-  ask('إغلاق الشهر وأرشفة الطلبات المنتهية الآن؟'+(n?' تبقى '+n+' طلبات غير مسوّاة مفتوحة حتى تسوية حسابها.':''),function(){
+  ask('إغلاق الشهر وأرشفة الطلبات المنتهية الآن؟'+(n?' الطلبات غير المسوّاة ('+n+') تبقى مفتوحة حتى تسوية حسابها.':''),function(){
   if(!closeMonth(S.period)){toast(n?'سوِّ الحسابات أولاً، لا توجد طلبات مسوّاة للإغلاق':'لا توجد طلبات منتهية للإغلاق');return}
   S.closedFor=S.period;save();render();toast('تم إغلاق الشهر وأرشفة التقرير')},'pri','إغلاق الشهر')}
 function resetAll(){ask('إعادة ضبط بيانات التجربة؟ ستُحذف كل الطلبات.',function(){S=seed();save();out()},'danger','إعادة الضبط')}
@@ -627,18 +630,18 @@ function listHtml(){
 /* ---- finance ---- */
 function setlHtml(role,u){var adm=U.role=='admin',l=(S.setl||[]).filter(function(x){return (!role||x.role==role)&&(!u||x.u==u)}).slice(0,adm?12:6);if(!l.length)return '';
   return sec('آخر التسويات',l.map(function(x){var rec=(x.role=='driver')==(x.amt>=0);
-    return '<div class="urow"><div class="ut"><b>'+(adm?esc(x.name):(rec?'سلّمت للشركة':'استلمت من الشركة'))+'</b><span class="mu">'+fmtT(x.t)+' · '+x.n+' طلبات</span></div>'+(adm?'<span class="chip">'+(rec?'استلام':'دفع')+'</span>':'')+'<b class="amt">'+fm(Math.abs(x.amt))+'</b></div>'}).join(''))}
+    return '<div class="urow"><div class="ut"><b>'+(adm?esc(x.name):(rec?'سلّمت للشركة':'استلمت من الشركة'))+'</b><span class="mu">'+fmtT(x.t)+' · الطلبات: '+x.n+'</span></div>'+(adm?'<span class="chip">'+(rec?'استلام':'دفع')+'</span>':'')+'<b class="amt">'+fm(Math.abs(x.amt))+'</b></div>'}).join(''))}
 function dueSec(){var rows=[];
   S.users.forEach(function(a){if(a.role=='admin')return;var dv=a.role=='driver',l=S.orders.filter(function(o){return dv?(o.driver==a.u&&dDue(o)):(o.store==a.u&&sDue(o))});if(!l.length)return;
     var net=r2(dv?dNet(l):sNet(l)),rec=dv==(net>=0);
-    rows.push('<div class="urow"><div class="ut"><b>'+esc(a.name)+'</b><span class="mu">'+RL[a.role]+' · '+l.length+' طلبات · '+(rec?'يسلّم للمكتب':'يستلم من المكتب')+'</span></div><b class="amt">'+fm(Math.abs(net))+'</b><button type="button" class="btn sm pri" data-r="'+a.role+'" data-u="'+esc(a.u)+'" onclick="settle(this.dataset.r,this.dataset.u)">تسوية</button></div>')});
+    rows.push('<div class="urow"><div class="ut"><b>'+esc(a.name)+'</b><span class="mu">'+RL[a.role]+' · الطلبات: '+l.length+' · '+(rec?'يسلّم للمكتب':'يستلم من المكتب')+'</span></div><b class="amt">'+fm(Math.abs(net))+'</b><button type="button" class="btn sm pri" data-r="'+a.role+'" data-u="'+esc(a.u)+'" onclick="settle(this.dataset.r,this.dataset.u)">تسوية</button></div>')});
   return sec('حسابات بانتظار التسوية',rows.length?rows.join(''):'<p class="mu">كل الحسابات مسوّاة، لا توجد مبالغ معلّقة.</p>')}
 function finD(){
   var m=S.orders.filter(function(o){return o.driver==U.u}),due=m.filter(dDue),net=r2(dNet(due)),dl=m.filter(function(o){return o.status=='delivered'}),
       col=sum(due.filter(function(o){return o.status=='delivered'}),'cod'),cm=r2(col-net),earn=sum(dl,'drv')+sum(m.filter(function(o){return o.status=='returned'}),'rdrv'),held=m.filter(function(o){return o.status=='failed'}).length;
   var rows=due.map(function(o){var d=o.status=='delivered';return '<tr><td><span class="code">'+esc(o.id)+'</span>'+(d?'':' <span class="chip">راجع</span>')+'</td><td>'+(d?fm(o.cod):'—')+'</td><td>'+fm(d?o.drv:(o.rdrv||0))+'</td></tr>'});
   return hero(net>=0?'المطلوب تسليمه للشركة':'مستحق لك من الشركة',Math.abs(net),[['المحصّل من الزبائن',fm(col)],['عمولتي',fm(cm)]])+
-  tiles([['عمولتي هذا الشهر',num(earn)],['طلبات مسلّمة',dl.length],['رواجع بحوزتي',held]])+
+  tiles([['عمولة الشهر',num(earn)],['طلبات مسلّمة',dl.length],['رواجع بحوزتي',held]])+
   (rows.length?sec('طلبات لم تُسوَّ بعد',tbl(['الكود','المحصّل','عمولتي'],rows,'<tr><td>الإجمالي</td><td>'+fm(col)+'</td><td>'+fm(cm)+'</td></tr>')):
    '<section class="card">'+empty('wallet',dl.length?'حسابك مسوّى':'لا توجد طلبات مسلّمة بعد',dl.length?'لا يوجد مبلغ بحوزتك للشركة الآن.':'تظهر هنا حساباتك بعد تسليم أول طلب.')+'</section>')+setlHtml('driver',U.u)}
 function finS(){
