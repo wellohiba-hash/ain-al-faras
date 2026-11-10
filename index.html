@@ -313,7 +313,7 @@ tfoot td{border-top:2px solid var(--line);border-bottom:0;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 document.documentElement.lang='ar';document.documentElement.dir='rtl';
-var CFG={"apiKey": "AIzaSyABESNfnKtYAlXSkX6ELOuWBwI6s12xYXI", "authDomain": "ain-al-faras.firebaseapp.com", "projectId": "ain-al-faras", "storageBucket": "ain-al-faras.firebasestorage.app", "messagingSenderId": "415713701868", "appId": "1:415713701868:web:0a76496b7295804ed5dac9"},VER='261110.0848';
+var CFG={"apiKey": "AIzaSyABESNfnKtYAlXSkX6ELOuWBwI6s12xYXI", "authDomain": "ain-al-faras.firebaseapp.com", "projectId": "ain-al-faras", "storageBucket": "ain-al-faras.firebasestorage.app", "messagingSenderId": "415713701868", "appId": "1:415713701868:web:0a76496b7295804ed5dac9"},VER='261110.0901';
 var CLOUD=!!CFG,K='af_v1',U=null,T='',S,Q='',F='',HL='',ENTER=0,SH=null;
 var ST={pending:'قيد الانتظار',out:'في الطريق',delivered:'تم التسليم',failed:'فشل التسليم',atoffice:'راجع في المكتب',returned:'أُرجع للمتجر'};
 var RK={pending:0,failed:1,atoffice:2,out:3,delivered:4,returned:5};
@@ -806,7 +806,8 @@ function leave(){detach();closeSheet();U=null;S=blank();BUSY=0;var known=0;try{k
   DB.doc('logins/admin').get().then(function(d){if(d.exists){try{localStorage.setItem('af_live','1')}catch(e){}BOOT=''}else BOOT='setup';render()},
     function(e){var c=e&&e.code;dbg(e);if(c=='permission-denied')BOOT='rules';else if(c=='not-found'){BOOT='rules';LERR='قاعدة بيانات Firestore لم تُنشأ بعد في مشروع Firebase.'}else BOOT='';render()})}
 function enter(fu){BOOT='load';render();var name=String(fu.email||'').split('@')[0].split('.')[0];
-  DB.doc('users/'+name).get().then(function(d){var x=d.exists?d.data():null;if(!x||x.uid!=fu.uid)throw{code:'af/off'};
+  var pr=DB.doc('users/'+name);
+  pr.get({source:'cache'}).catch(function(){return null}).then(function(d){return d&&d.exists?d:pr.get()}).then(function(d){var x=d.exists?d.data():null;if(!x||x.uid!=fu.uid)throw{code:'af/off'};
     try{localStorage.setItem('af_live','1')}catch(e){}
     U={u:name,name:x.name,role:x.role,uid:x.uid};S=blank();S.users=[U];T=home(U.role);
     try{var st=localStorage.getItem('af_t');if(TABS[U.role].some(function(q){return q[0]==st}))T=st}catch(e){}
@@ -886,5 +887,6 @@ else{S=load();autoClose();
     if(U){T=home(U.role);var st=localStorage.getItem('af_t');if(TABS[U.role].some(function(x){return x[0]==st}))T=st}}catch(e){}
   render()}
 </script>
+<script>if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});</script>
 </body>
 </html>
