@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0E3B30">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="عين الفرس">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
 <title>عين الفرس – إدارة التوصيل</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Lalezar&display=swap">
@@ -302,9 +308,13 @@ tfoot td{border-top:2px solid var(--line);border-bottom:0;font-weight:700}
 <body>
 <div id="app"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 document.documentElement.lang='ar';document.documentElement.dir='rtl';
-var K='af_v1',U=null,T='',S,Q='',F='',HL='',ENTER=0,SH=null;
+var CFG={"apiKey": "AIzaSyABESNfnKtYAlXSkX6ELOuWBwI6s12xYXI", "authDomain": "ain-al-faras.firebaseapp.com", "projectId": "ain-al-faras", "storageBucket": "ain-al-faras.firebasestorage.app", "messagingSenderId": "415713701868", "appId": "1:415713701868:web:0a76496b7295804ed5dac9"};
+var CLOUD=!!CFG,K='af_v1',U=null,T='',S,Q='',F='',HL='',ENTER=0,SH=null;
 var ST={pending:'قيد الانتظار',out:'في الطريق',delivered:'تم التسليم',failed:'فشل التسليم',atoffice:'راجع في المكتب',returned:'أُرجع للمتجر'};
 var RK={pending:0,failed:1,atoffice:2,out:3,delivered:4,returned:5};
 var REASONS=['الزبون لا يرد','رفض الاستلام','العنوان غير صحيح','طلب التأجيل','سبب آخر'],FR='';
@@ -360,14 +370,14 @@ zones:[{id:'center',name:'وسط البلاد',fee:15,fixed:1},{id:'sub',name:'�
 {id:'x1',name:'مصراتة',fee:45},{id:'x2',name:'الزاوية',fee:35}],
 orders:[],next:1001,archive:[],period:ym(new Date()),closedFor:'',retPct:0}}
 function load(){try{var r=localStorage.getItem(K);if(r){var d=JSON.parse(r);if(!d.retSet&&d.retPct===100)d.retPct=0;return d}}catch(e){}return seed()}
-function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){toast('تعذّر حفظ البيانات في هذا الجهاز')}}
+function save(){if(CLOUD){cloudSave();return}try{localStorage.setItem(K,JSON.stringify(S))}catch(e){toast('تعذّر حفظ البيانات في هذا الجهاز')}}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function zn(id){return S.zones.filter(function(z){return z.id==id})[0]||{name:'—',fee:0}}
 function un(u){var x=S.users.filter(function(a){return a.u==u})[0];return x?x.name:'—'}
 function findO(id){return S.orders.filter(function(x){return x.id==id})[0]}
 function usr(u){return S.users.filter(function(a){return a.u==u})[0]}
 function znm(o){var z=S.zones.filter(function(q){return q.id==o.zone})[0];return z?z.name:(o.zname||'—')}
-function isDemo(){var a=usr('admin');return !!a&&a.p=='admin123'}
+function isDemo(){if(CLOUD)return false;var a=usr('admin');return !!a&&a.p=='admin123'}
 function okPhone(p){var n=String(p).replace(/\D/g,'').length;return n>=9&&n<=13}
 function r2(n){return Math.round(n*100)/100}
 function lt(o,k){var t=0;(o.log||[]).forEach(function(e){if(e.s==k)t=e.t});return t}
@@ -400,7 +410,8 @@ function closeMonth(label){
   if(!fin.length)return false;
   var dl=fin.filter(function(o){return o.status=='delivered'}),rt=fin.filter(function(o){return o.status=='returned'}),bz={};
   dl.forEach(function(o){var z=znm(o);bz[z]=(bz[z]||0)+1});
-  S.archive.unshift({label:label,date:dstr(Date.now()),total:fin.length,delivered:dl.length,returned:rt.length,cod:sum(dl,'cod'),
+  if(CLOUD)fin.forEach(function(o){PEND.push({t:'upd',p:'orders/'+o.id,d:{ar:label}})});
+  S.archive.unshift({k:label+'-'+Date.now(),t:Date.now(),label:label,date:dstr(Date.now()),total:fin.length,delivered:dl.length,returned:rt.length,cod:sum(dl,'cod'),
     fees:sum(dl,'fee'),rfees:sum(rt,'rfee'),comm:sum(dl,'comm')+sum(rt,'rcomm'),drv:sum(dl,'drv')+sum(rt,'rdrv'),bz:bz});
   S.orders=S.orders.filter(function(o){return fin.indexOf(o)<0});
   return true;
@@ -425,7 +436,7 @@ function openSheet(html){
   var tt=document.querySelector('.toast');if(tt)tt.classList.add('top');
   var f=d.querySelector('[data-focus]');if(f)try{f.focus({preventScroll:true})}catch(e){}
   return d}
-function closeSheet(){if(SH){SH.remove();SH=null;document.body.style.overflow=''}}
+function closeSheet(){if(SH){SH.remove();SH=null;document.body.style.overflow='';if(CLOUD&&STALE&&U&&!BOOT&&calm()){STALE=0;render()}}}
 document.addEventListener('keydown',function(e){if(e.key=='Escape')closeSheet()});
 function shHead(t){return '<div class="sh"><h2 class="ct">'+t+'</h2><button type="button" class="btn icon sm ghost" aria-label="إغلاق" onclick="closeSheet()">'+ic('x',18)+'</button></div>'}
 function ask(m,fn,kind,label){
@@ -439,21 +450,26 @@ function copyTxt(t,m){var ok=function(){toast(m||'تم النسخ')},fail=functi
 function home(r){return{admin:'orders',store:'new',driver:'tasks'}[r]}
 function fill(u,p){document.getElementById('lu').value=u;document.getElementById('lp').value=p}
 function togglePw(){var i=document.getElementById('lp'),b=document.getElementById('eyeb'),show=i.type=='password';i.type=show?'text':'password';b.innerHTML=ic(show?'eyeoff':'eye',20);b.setAttribute('aria-label',show?'إخفاء كلمة المرور':'إظهار كلمة المرور')}
-function login(){var u=document.getElementById('lu').value.trim(),p=document.getElementById('lp').value;
+function login(){var u=document.getElementById('lu').value.trim(),p=document.getElementById('lp').value,le=document.getElementById('le');
+  if(CLOUD){u=u.toLowerCase();LERR='';if(!/^[a-z0-9_-]{1,30}$/.test(u)||!p){le.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return}
+    if(BUSY)return;BUSY=1;le.textContent='';var bt=document.querySelector('.lform button[type=submit]');if(bt){bt.disabled=true;bt.textContent='جارٍ الدخول…'}
+    DB.doc('logins/'+u).get().then(function(d){if(!d.exists)throw{code:'auth/invalid-credential'};return FA.signInWithEmailAndPassword(mail(u,d.data().v),p)})
+    .then(function(){BUSY=0},function(e){BUSY=0;var x=document.getElementById('le'),b2=document.querySelector('.lform button[type=submit]');if(x)x.textContent=fbErr(e);if(b2){b2.disabled=false;b2.textContent='دخول'}});return}
   var x=S.users.filter(function(a){return a.u.toLowerCase()==u.toLowerCase()&&a.p==p})[0];
-  if(!x){document.getElementById('le').textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return}
+  if(!x){le.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return}
   U=x;autoClose();try{localStorage.setItem('af_u',x.u)}catch(e){}
   T=home(x.role);Q='';F='';ENTER=1;render();window.scrollTo(0,0)}
-function out(){closeSheet();U=null;try{localStorage.removeItem('af_u');localStorage.removeItem('af_t')}catch(e){}render()}
+function out(){closeSheet();if(CLOUD){try{localStorage.removeItem('af_t')}catch(e){}FA.signOut();return}U=null;try{localStorage.removeItem('af_u');localStorage.removeItem('af_t')}catch(e){}render()}
 function tab(t){T=t;Q='';F='';ENTER=1;try{localStorage.setItem('af_t',t)}catch(e){}render();window.scrollTo(0,0)}
 function setF(k){F=k;render()}
 function addOrder(){var f=function(i){return document.getElementById(i).value.trim()};
   if(!f('cn')||!f('cp')||!f('ca')){toast('يرجى تعبئة اسم الزبون والهاتف والعنوان');return}
   if(!okPhone(f('cp'))){toast('رقم الهاتف غير صحيح');return}
   var z=zn(f('cz'));if(!z.id){toast('اختر المنطقة');return}
-  var s=split(z.fee),id='AF-'+S.next++,now=Date.now();
-  S.orders.unshift({id:id,store:U.u,cust:f('cn'),phone:f('cp'),addr:f('ca'),map:f('cm'),note:f('cno'),zone:z.id,zname:z.name,cod:Math.max(0,+f('cc')||0),
-    fee:z.fee,comm:s.c,drv:s.d,status:'pending',driver:'',ts:now,log:[{s:'created',t:now}]});
+  var s=split(z.fee),now=Date.now(),o={id:'',store:U.u,cust:f('cn'),phone:f('cp'),addr:f('ca'),map:f('cm'),note:f('cno'),zone:z.id,zname:z.name,cod:Math.max(0,+f('cc')||0),
+    fee:z.fee,comm:s.c,drv:s.d,status:'pending',driver:'',ar:'',ts:now,log:[{s:'created',t:now}]};
+  if(CLOUD){addCloud(o);return}
+  var id=o.id='AF-'+S.next++;S.orders.unshift(o);
   save();T='mine';Q='';F='';ENTER=1;HL=id;render();HL='';window.scrollTo(0,0);toast('تم إنشاء الطلب '+id)}
 function zfee(){var z=zn(document.getElementById('cz').value),c=+document.getElementById('cc').value||0,e=document.getElementById('fp');
   e.innerHTML='<span>رسوم التوصيل <b>'+fm(z.fee)+'</b></span><span>'+(c>0?'صافي المتجر بعد خصم التوصيل <b>'+fm(c-z.fee)+'</b>':'بدون تحصيل: تُحسب رسوم التوصيل على المتجر')+'</span>'}
@@ -467,13 +483,13 @@ function setSt(id,s){
   ask(s=='delivered'?'تأكيد تسليم الطلب '+id+'؟':'تسجيل فشل تسليم الطلب '+id+'؟',
     function(){var o=findO(id);o.status=s;lg(o,{s:s});save();render();toast(s=='delivered'?'تم تسجيل التسليم':'تم تسجيل الفشل')},
     s=='delivered'?'ok':'danger',s=='delivered'?'تم التسليم':'تسجيل الفشل')}
-function delOrder(id){ask('حذف الطلب '+id+'؟ لا يمكن التراجع بعد الحذف.',function(){S.orders=S.orders.filter(function(x){return x.id!=id});save();render();toast('تم حذف الطلب '+id)},'danger','حذف الطلب')}
+function delOrder(id){ask('حذف الطلب '+id+'؟ لا يمكن التراجع بعد الحذف.',function(){if(CLOUD)PEND.push({t:'del',p:'orders/'+id});S.orders=S.orders.filter(function(x){return x.id!=id});save();render();toast('تم حذف الطلب '+id)},'danger','حذف الطلب')}
 function retFee(o){var f=Math.round(o.fee*(S.retPct||0))/100,s=split(f);return{f:f,c:s.c,d:s.d}}
 function atOffice(id){var o0=findO(id);if(!o0)return;
   ask('تأكيد استلام الراجع '+id+' من المندوب '+un(o0.driver)+'؟',function(){var o=findO(id);o.status='atoffice';lg(o,{s:'atoffice',d:o.driver});save();closeSheet();HL=id;render();HL='';toast('تم استلام الراجع '+id+' في المكتب')},'pri','تأكيد الاستلام')}
 function toStore(id){var o=findO(id);if(!o)return;var adm=U.role=='admin',r=retFee(o);
   ask((adm?'تأكيد تسليم الراجع '+id+' إلى '+un(o.store)+'؟':'تأكيد استلام الراجع '+id+' من المكتب؟')+(r.f>0?' ستُحسب رسوم راجع '+num(r.f)+' د.ل على المتجر.':' بدون رسوم راجع.'),
-    function(){o.status='returned';o.rfee=r.f;o.rcomm=r.c;o.rdrv=r.d;lg(o,{s:'returned',by:U.u});save();closeSheet();HL=id;render();HL='';
+    function(){o=findO(id);if(!o)return;o.status='returned';o.rfee=r.f;o.rcomm=r.c;o.rdrv=r.d;lg(o,{s:'returned',by:U.u});save();closeSheet();HL=id;render();HL='';
       toast(r.f>0?'تمت التسوية، رسوم الراجع '+num(r.f)+' د.ل':'تمت التسوية بدون رسوم')},'pri',adm?'تم التسليم للمتجر':'تأكيد الاستلام')}
 function failSheet(id){FR='';
   openSheet(shHead('فشل تسليم '+esc(id))+'<div class="sub">اختر سبب الفشل</div><div class="chips2">'+REASONS.map(function(r,i){return '<button type="button" class="chp" data-i="'+i+'" onclick="pickR(this)">'+r+'</button>'}).join('')+'</div><p class="mu">تبقى الشحنة بحوزتك حتى تسلّمها للمكتب.</p><button type="button" class="btn danger big block" id="fy" data-id="'+esc(id)+'" onclick="doFail(this.dataset.id)" disabled>تسجيل الفشل</button>')}
@@ -483,7 +499,7 @@ function settle(role,u){
   var l=S.orders.filter(function(o){return role=='driver'?(o.driver==u&&dDue(o)):(o.store==u&&sDue(o))});if(!l.length){toast('لا يوجد ما يُسوّى');return}
   var net=r2(role=='driver'?dNet(l):sNet(l)),nm=un(u),a=num(Math.abs(net))+' د.ل',rec=(role=='driver')==(net>=0);
   ask((rec?'تأكيد استلام '+a+' من ':'تأكيد دفع '+a+' إلى ')+nm+'؟ عدد الطلبات: '+l.length,function(){var now=Date.now();l.forEach(function(o){o[role=='driver'?'dp':'sp']=now});
-    S.setl=S.setl||[];S.setl.unshift({t:now,role:role,u:u,name:nm,amt:net,n:l.length});S.setl=S.setl.slice(0,200);save();render();toast('تمت التسوية مع '+nm)},'pri',rec?'تم الاستلام':'تم الدفع')}
+    S.setl=S.setl||[];S.setl.unshift({k:'s'+now+'-'+u,t:now,role:role,u:u,name:nm,amt:net,n:l.length});S.setl=S.setl.slice(0,200);save();render();toast('تمت التسوية مع '+nm)},'pri',rec?'تم الاستلام':'تم الدفع')}
 function editOrder(id){var o=findO(id);if(!o||o.status!='pending')return;
   openSheet(shHead('تعديل '+esc(o.id))+
   '<div class="f"><label for="e1">اسم الزبون</label><input id="e1" value="'+esc(o.cust)+'"></div>'+
@@ -527,23 +543,30 @@ function manualClose(){var n=S.orders.filter(function(o){return dDue(o)||sDue(o)
   if(!closeMonth(S.period)){toast(n?'سوِّ الحسابات أولاً، لا توجد طلبات مسوّاة للإغلاق':'لا توجد طلبات منتهية للإغلاق');return}
   S.closedFor=S.period;save();render();toast('تم إغلاق الشهر وأرشفة التقرير')},'pri','إغلاق الشهر')}
 function resetAll(){ask('إعادة ضبط بيانات التجربة؟ ستُحذف كل الطلبات.',function(){S=seed();save();out()},'danger','إعادة الضبط')}
-function addUser(){var g=function(i){return document.getElementById(i).value.trim()};
-  if(!g('un')||!g('uu')||!g('up')){toast('يرجى تعبئة كل الحقول');return}
-  if(!/^[a-z0-9_.-]{3,20}$/i.test(g('uu'))){toast('اسم المستخدم: 3 أحرف إنجليزية أو أرقام على الأقل، بدون مسافات');return}
-  if(g('up').length<4){toast('كلمة المرور 4 أحرف على الأقل');return}
-  if(S.users.some(function(a){return a.u.toLowerCase()==g('uu').toLowerCase()})){toast('اسم المستخدم موجود مسبقاً');return}
-  S.users.push({u:g('uu'),p:g('up'),role:g('ur'),name:g('un')});save();render();toast('تمت إضافة الحساب')}
+function addUser(){var g=function(i){return document.getElementById(i).value.trim()},u=g('uu').toLowerCase(),mn=CLOUD?6:4;
+  if(!g('un')||!u||!g('up')){toast('يرجى تعبئة كل الحقول');return}
+  if(!/^[a-z0-9_-]{3,20}$/.test(u)){toast('اسم المستخدم: 3 أحرف إنجليزية أو أرقام على الأقل، بدون مسافات أو نقاط');return}
+  if(g('up').length<mn){toast('كلمة المرور '+mn+' أحرف على الأقل');return}
+  if(S.users.some(function(a){return a.u.toLowerCase()==u})){toast('اسم المستخدم موجود مسبقاً');return}
+  if(CLOUD){userCloud(u,g('up'),{name:g('un'),role:g('ur')},'تمت إضافة الحساب');return}
+  S.users.push({u:u,p:g('up'),role:g('ur'),name:g('un')});save();render();toast('تمت إضافة الحساب')}
 function delUser(u){if(S.orders.some(function(o){return o.store==u||o.driver==u})){toast('لا يمكن حذف حساب له طلبات مفتوحة. غيّر كلمة مروره لإيقافه.');return}
-  ask('حذف هذا الحساب؟',function(){S.users=S.users.filter(function(a){return a.u!=u});save();render()},'danger','حذف')}
+  ask('حذف هذا الحساب؟ لن يستطيع صاحبه الدخول بعدها.',function(){
+    if(CLOUD){DB.doc('users/'+u).delete().then(function(){render();toast('تم حذف الحساب')},function(e){toast('تعذّر الحذف: '+fbErr(e))});return}
+    S.users=S.users.filter(function(a){return a.u!=u});save();render()},'danger','حذف')}
 function showPw(u){var a=S.users.filter(function(x){return x.u==u})[0];if(!a)return;
   openSheet(shHead('كلمة مرور '+esc(a.name))+'<div class="f"><label for="np">كلمة المرور الجديدة</label><input id="np" dir="ltr" autocomplete="off" data-focus></div><button type="button" class="btn pri big block" data-u="'+esc(u)+'" onclick="setPw(this.dataset.u)">حفظ</button>')}
-function setPw(u){var v=document.getElementById('np').value.trim();if(v.length<4){toast('كلمة المرور 4 أحرف على الأقل');return}
+function setPw(u){var v=document.getElementById('np').value.trim(),mn=CLOUD?6:4;if(v.length<mn){toast('كلمة المرور '+mn+' أحرف على الأقل');return}
+  if(CLOUD){userCloud(u,v,null,'تم تغيير كلمة المرور');return}
   S.users.filter(function(x){return x.u==u})[0].p=v;save();closeSheet();toast('تم تغيير كلمة المرور')}
 function showAccount(){
   openSheet(shHead('حسابي')+'<div class="urow"><span class="av2">'+esc(U.name.trim().charAt(0))+'</span><div class="ut"><b>'+esc(U.name)+'</b><span class="mu ltr">@'+esc(U.u)+'</span></div><span class="chip">'+RL[U.role]+'</span></div>'+
   '<details class="acc"><summary>تغيير كلمة المرور</summary><div class="accb"><div class="f"><label for="pw0">كلمة المرور الحالية</label><input id="pw0" type="password" dir="ltr" autocomplete="current-password"></div><div class="f"><label for="pw1">كلمة المرور الجديدة</label><input id="pw1" type="password" dir="ltr" autocomplete="new-password"></div><button type="button" class="btn pri block" onclick="chgPw()">حفظ كلمة المرور</button></div></details>'+
   '<button type="button" class="btn bad big block" onclick="out()">'+ic('logout',20)+'تسجيل الخروج</button>')}
 function chgPw(){var a=document.getElementById('pw0').value,b=document.getElementById('pw1').value;
+  if(CLOUD){if(b.length<6){toast('كلمة المرور الجديدة 6 أحرف على الأقل');return}var fu=FA.currentUser;
+    fu.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(fu.email,a)).then(function(){return fu.updatePassword(b)})
+    .then(function(){closeSheet();toast('تم تغيير كلمة المرور')},function(e){toast(/wrong-password|invalid-credential|invalid-login/.test(String(e&&e.code))?'كلمة المرور الحالية غير صحيحة':fbErr(e))});return}
   if(a!=U.p){toast('كلمة المرور الحالية غير صحيحة');return}
   if(b.length<4){toast('كلمة المرور الجديدة 4 أحرف على الأقل');return}
   U.p=b;save();closeSheet();toast('تم تغيير كلمة المرور')}
@@ -667,7 +690,7 @@ function vLogin(){return '<div class="lhero"><div class="in lh">'+logo(76)+'<h1>
 '<div class="in lbody"><form class="card lform" onsubmit="event.preventDefault();login()"><h2 class="ct">تسجيل الدخول</h2>'+
 '<div class="f"><label for="lu">اسم المستخدم</label><input id="lu" dir="ltr" autocomplete="username" autocapitalize="none" spellcheck="false"></div>'+
 '<div class="f"><label for="lp">كلمة المرور</label><div class="pw"><input id="lp" type="password" dir="ltr" autocomplete="current-password"><button type="button" class="eye" id="eyeb" aria-label="إظهار كلمة المرور" onclick="togglePw()">'+ic('eye',20)+'</button></div></div>'+
-'<div id="le" class="err" role="alert"></div><button class="btn pri big block" type="submit">دخول</button></form>'+
+'<div id="le" class="err" role="alert">'+esc(LERR)+'</div><button class="btn pri big block" type="submit">دخول</button></form>'+
 (!isDemo()?'</div>':'<div class="demo"><span class="mu">حسابات تجريبية، اضغط لتعبئة البيانات</span><div class="row">'+
 '<button type="button" class="chp" data-u="admin" data-p="admin123" onclick="fill(this.dataset.u,this.dataset.p)">مدير</button>'+
 '<button type="button" class="chp" data-u="store1" data-p="1234" onclick="fill(this.dataset.u,this.dataset.p)">متجر</button>'+
@@ -695,7 +718,7 @@ function vAdmin(){
     '<section class="card"><h2 class="ct">إضافة حساب</h2><div class="g2"><div class="f"><label for="un">الاسم</label><input id="un"></div><div class="f"><label for="ur">الدور</label><select id="ur"><option value="store">متجر</option><option value="driver">مندوب</option></select></div>'+
     '<div class="f"><label for="uu">اسم المستخدم</label><input id="uu" dir="ltr" autocomplete="off" autocapitalize="none"></div><div class="f"><label for="up">كلمة المرور</label><input id="up" dir="ltr" autocomplete="off"></div></div>'+
     '<button type="button" class="btn pri block" style="margin-top:14px" onclick="addUser()">'+ic('plus',18)+'إضافة</button></section>'+
-    sec('النسخ الاحتياطي','<p class="mu" style="margin-bottom:12px">البيانات محفوظة في هذا الجهاز فقط. نزّل نسخة احتياطية بانتظام واحفظها في مكان آمن. آخر نسخة: '+(S.bk?fmtT(S.bk):'لم تُؤخذ بعد')+'.</p><div class="row"><button type="button" class="btn" onclick="backup()">'+ic('archive',18)+'تنزيل نسخة</button><button type="button" class="btn" onclick="document.getElementById(\'bf\').click()">استرجاع نسخة</button><input id="bf" type="file" accept="application/json,.json" hidden onchange="restore(this)"></div>')+
+    sec('النسخ الاحتياطي','<p class="mu" style="margin-bottom:12px">'+(CLOUD?'البيانات محفوظة في قاعدة البيانات السحابية وتتزامن بين كل الأجهزة. يمكنك تنزيل نسخة للاحتفاظ بها عندك.':'البيانات محفوظة في هذا الجهاز فقط. نزّل نسخة احتياطية بانتظام واحفظها في مكان آمن.')+' آخر نسخة: '+(S.bk?fmtT(S.bk):'لم تُؤخذ بعد')+'.</p><div class="row"><button type="button" class="btn" onclick="backup()">'+ic('archive',18)+'تنزيل نسخة</button>'+(CLOUD?'':'<button type="button" class="btn" onclick="document.getElementById(\'bf\').click()">استرجاع نسخة</button><input id="bf" type="file" accept="application/json,.json" hidden onchange="restore(this)">')+'</div>')+
     (isDemo()?sec('التجهيز للإطلاق','<p class="mu" style="margin-bottom:12px">التطبيق الآن في وضع التجربة بحسابات تجريبية كلمات مرورها معروفة. عند بدء التشغيل الفعلي تُحذف الطلبات والحسابات التجريبية وتختار كلمة مرور جديدة للمدير.</p><div class="row"><button type="button" class="btn pri" onclick="goLive()">بدء التشغيل الفعلي</button><button type="button" class="btn bad" onclick="resetAll()">إعادة ضبط التجربة</button></div>'):'')}
   if(T=='zones'){
     return pg('الأسعار','وسط البلاد وضواحي طرابلس ثابتتان. الباقي تحدده أنت')+
@@ -745,6 +768,7 @@ function navH(){var need=S.orders.filter(function(o){return o.status=='pending'|
     return '<button type="button" class="'+(T==t[0]?'on':'')+'" data-t="'+t[0]+'" onclick="tab(this.dataset.t)"'+(T==t[0]?' aria-current="page"':'')+'><span class="ip">'+ic(t[2],22)+(U.role=='admin'&&t[0]=='orders'&&need?'<i class="dot">'+need+'</i>':'')+(U.role=='store'&&t[0]=='mine'&&pk?'<i class="dot">'+pk+'</i>':'')+'</span><span>'+t[1]+'</span></button>'}).join('')+'</div></nav>'}
 function render(){
   var a=document.getElementById('app');
+  if(CLOUD&&BOOT){a.innerHTML=vBoot();return}
   if(!U){a.innerHTML=vLogin();return}
   var body=U.role=='admin'?vAdmin():U.role=='store'?vStore():vDriver();
   a.innerHTML=headH()+navH()+'<main class="in'+(ENTER?' enter':'')+'">'+body+'</main>';ENTER=0;
@@ -754,12 +778,111 @@ document.getElementById('app').addEventListener('click',function(e){
   var c=e.target.closest?e.target.closest('[data-oid]'):null;
   if(!c||e.target.closest('select,button,a,input,textarea,label'))return;
   showOrder(c.dataset.oid)});
-window.addEventListener('storage',function(e){if(e.key!=K||!e.newValue)return;var d;try{d=JSON.parse(e.newValue)}catch(x){return}
+/* ---- cloud mode: Firebase Auth + Firestore. CFG is injected by the standalone build; without it the page is a local demo ---- */
+var FA=null,DB=null,UN=[],RD={},PEND=[],SHD={o:{},cfg:'',ok:0,ar:{},st:{}},STALE=0,HOLD=0,BUSY=0,AUX=0,VF=0,BOOT=CLOUD?'boot':'',LERR='',LIVE={orders:1,fin:1,arch:1,mine:1,tasks:1};
+function blank(){return{users:[],zones:[],orders:[],archive:[],setl:[],next:1001,period:ym(new Date()),closedFor:'',retPct:0}}
+function mail(u,v){return u+'.'+v+'@'+CFG.authDomain}
+function fbErr(e){var c=String((e&&e.code)||'');
+  if(/network|unavailable|offline/.test(c))return 'لا يوجد اتصال بالإنترنت';
+  if(/permission-denied/.test(c))return 'لا تملك صلاحية هذه العملية';
+  if(/wrong-password|invalid-credential|user-not-found|invalid-login|invalid-email/.test(c))return 'اسم المستخدم أو كلمة المرور غير صحيحة';
+  if(/too-many-requests/.test(c))return 'محاولات كثيرة، انتظر قليلاً ثم حاول';
+  if(/weak-password/.test(c))return 'كلمة المرور 6 أحرف على الأقل';
+  if(/operation-not-allowed|configuration-not-found/.test(c))return 'الدخول بكلمة المرور غير مفعّل في Firebase Authentication';
+  return 'حدث خطأ غير متوقع'+(c?' ('+c+')':'')}
+function cfgData(){var fees={};S.zones.forEach(function(z){fees[z.id]=z.fee});
+  return{zones:S.zones,fees:fees,retPct:S.retPct||0,retSet:S.retSet||0,period:S.period,closedFor:S.closedFor||'',bk:S.bk||0}}
+function mergeList(cur,docs,key){var by={};cur.forEach(function(o){by[o[key]]=o});
+  return docs.map(function(d){var o=by[d[key]];if(!o)return d;Object.keys(o).forEach(function(k){if(!(k in d))delete o[k]});Object.keys(d).forEach(function(k){o[k]=d[k]});return o})}
+function cloudInit(){
+  try{firebase.initializeApp(CFG);FA=firebase.auth();DB=firebase.firestore();DB.enablePersistence({synchronizeTabs:true}).catch(function(){})}
+  catch(e){BOOT='err';render();return}
+  FA.onAuthStateChanged(function(fu){if(HOLD)return;if(fu)enter(fu);else leave()})}
+function detach(){UN.forEach(function(f){try{f()}catch(e){}});UN=[];RD={};PEND=[];SHD={o:{},cfg:'',ok:0,ar:{},st:{}}}
+function leave(){detach();closeSheet();U=null;S=blank();BUSY=0;var known=0;try{known=localStorage.getItem('af_live')=='1'}catch(e){}
+  if(known){BOOT='';render();return}
+  DB.doc('logins/admin').get().then(function(d){if(d.exists){try{localStorage.setItem('af_live','1')}catch(e){}BOOT=''}else BOOT='setup';render()},
+    function(e){var c=e&&e.code;if(c=='permission-denied')BOOT='rules';else if(c=='not-found'){BOOT='rules';LERR='قاعدة بيانات Firestore لم تُنشأ بعد في مشروع Firebase.'}else BOOT='';render()})}
+function enter(fu){BOOT='load';render();var name=String(fu.email||'').split('@')[0].split('.')[0];
+  DB.doc('users/'+name).get().then(function(d){var x=d.exists?d.data():null;if(!x||x.uid!=fu.uid)throw{code:'af/off'};
+    try{localStorage.setItem('af_live','1')}catch(e){}
+    U={u:name,name:x.name,role:x.role,uid:x.uid};S=blank();S.users=[U];T=home(U.role);
+    try{var st=localStorage.getItem('af_t');if(TABS[U.role].some(function(q){return q[0]==st}))T=st}catch(e){}
+    Q='';F='';attach()})
+  .catch(function(e){var c=e&&e.code;if(c=='af/off'||c=='permission-denied')kick();else{BOOT='err';render()}})}
+function attach(){detach();var r=U.role,me=U.u,C=function(n){return DB.collection(n)},q=C('orders').where('ar','==','');
+  if(r=='store')q=C('orders').where('store','==',me).where('ar','==','');
+  if(r=='driver')q=C('orders').where('driver','==',me).where('ar','==','');
+  var on=function(k,ref,fn){UN.push(ref.onSnapshot(function(sn){if(!U)return;fn(sn);if(!RD[k]){RD[k]=1;ready()}else sync()},function(e){if(!U)return;if(!RD[k]){RD[k]=1;ready()}if(e&&e.code=='permission-denied')verify();else toast(fbErr(e))}))};
+  on('u',C('users'),function(sn){var rk={admin:0,store:1,driver:2},l=sn.docs.map(function(d){var x=d.data();return{u:d.id,name:x.name,role:x.role,uid:x.uid}});
+    l.sort(function(a,b){return rk[a.role]-rk[b.role]||String(a.name).localeCompare(String(b.name),'ar')});
+    S.users=l;var m=usr(U.u),fu=FA.currentUser;if(!m||!fu||m.uid!=fu.uid){kick();return}U=m});
+  on('c',DB.doc('meta/config'),function(sn){if(!sn.exists)return;var d=sn.data();S.zones=d.zones||[];S.retPct=d.retPct||0;S.retSet=d.retSet||0;S.period=d.period||ym(new Date());S.closedFor=d.closedFor||'';S.bk=d.bk||0;SHD.cfg=JSON.stringify(cfgData());SHD.ok=1});
+  on('n',DB.doc('meta/counter'),function(sn){if(sn.exists)S.next=sn.data().next});
+  on('o',q,function(sn){var docs=sn.docs.map(function(d){return d.data()});docs.sort(function(a,b){return (b.ts||0)-(a.ts||0)});
+    S.orders=mergeList(S.orders,docs,'id');SHD.o={};S.orders.forEach(function(o){SHD.o[o.id]=JSON.stringify(o)})});
+  on('s',r=='admin'?C('setl').orderBy('t','desc').limit(60):C('setl').where('u','==',me),function(sn){S.setl=sn.docs.map(function(d){return d.data()}).sort(function(a,b){return (b.t||0)-(a.t||0)});SHD.st={};S.setl.forEach(function(x){SHD.st[x.k]=1})});
+  if(r=='admin')on('a',C('archive').orderBy('t','desc').limit(36),function(sn){S.archive=sn.docs.map(function(d){return d.data()});SHD.ar={};S.archive.forEach(function(x){SHD.ar[x.k]=1})})}
+function ready(){if(BOOT!='load'||!U)return;var need=['u','c','n','o','s'].concat(U.role=='admin'?['a']:[]);
+  if(!need.every(function(k){return RD[k]}))return;BOOT='';if(U.role=='admin'&&SHD.ok)autoClose();ENTER=1;render();window.scrollTo(0,0)}
+/* re-render on remote changes only when it cannot disturb the user: no open sheet, no focused field, no half-filled form */
+function calm(){var ae=document.activeElement;if(SH||(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)))return false;if(LIVE[T])return true;
+  var f=document.querySelectorAll('main input,main textarea');for(var i=0;i<f.length;i++)if(f[i].type!='file'&&f[i].value!==f[i].defaultValue)return false;return true}
+function sync(){if(!U||BOOT)return;if(!calm()){STALE=1;return}STALE=0;render()}
+function kick(){LERR='هذا الحساب موقوف، راجع الإدارة';FA.signOut()}
+function verify(){if(!U||VF)return;VF=1;var fu=FA.currentUser;
+  DB.doc('users/'+U.u).get().then(function(d){VF=0;if(!d.exists||!fu||d.data().uid!=fu.uid)kick();else toast('تعذّر تحميل بعض البيانات، لا تملك صلاحيتها')},function(e){VF=0;if(e&&e.code=='permission-denied')kick();else toast(fbErr(e))})}
+function cloudSave(){if(!U||!DB)return;var w=PEND,FV=firebase.firestore.FieldValue;PEND=[];
+  S.orders.forEach(function(o){var js=JSON.stringify(o),old=SHD.o[o.id];if(old===js)return;
+    if(old===undefined)w.push({t:'set',p:'orders/'+o.id,d:JSON.parse(js)});
+    else{var a=JSON.parse(old),b=JSON.parse(js),pt={},n=0;
+      Object.keys(b).forEach(function(k){if(JSON.stringify(a[k])!==JSON.stringify(b[k])){pt[k]=b[k];n++}});
+      Object.keys(a).forEach(function(k){if(!(k in b)){pt[k]=FV.delete();n++}});
+      if(n)w.push({t:'upd',p:'orders/'+o.id,d:pt})}
+    SHD.o[o.id]=js});
+  if(U.role=='admin'){
+    if(SHD.ok){var c=JSON.stringify(cfgData());if(c!==SHD.cfg){SHD.cfg=c;w.push({t:'set',p:'meta/config',d:JSON.parse(c)})}}
+    (S.archive||[]).forEach(function(x){if(x.k&&!SHD.ar[x.k]){SHD.ar[x.k]=1;w.push({t:'set',p:'archive/'+x.k,d:JSON.parse(JSON.stringify(x))})}});
+    (S.setl||[]).forEach(function(x){if(x.k&&!SHD.st[x.k]){SHD.st[x.k]=1;w.push({t:'set',p:'setl/'+x.k,d:JSON.parse(JSON.stringify(x))})}})}
+  for(var i=0;i<w.length;i+=400)(function(part){var bt=DB.batch();part.forEach(function(x){var rf=DB.doc(x.p);if(x.t=='set')bt.set(rf,x.d);else if(x.t=='upd')bt.update(rf,x.d);else bt.delete(rf)});
+    bt.commit().catch(function(e){toast('تعذّر الحفظ: '+fbErr(e))})})(w.slice(i,i+400))}
+function addCloud(o){if(BUSY)return;BUSY=1;var cr=DB.doc('meta/counter');
+  DB.runTransaction(function(tx){return tx.get(cr).then(function(d){if(!d.exists)throw{code:'af/setup'};var n=d.data().next;o.id='AF-'+n;tx.update(cr,{next:n+1});tx.set(DB.doc('orders/'+o.id),o);return o.id})})
+  .then(function(id){BUSY=0;T='mine';Q='';F='';ENTER=1;HL=id;render();HL='';window.scrollTo(0,0);toast('تم إنشاء الطلب '+id)},
+        function(e){BUSY=0;toast('تعذّر إنشاء الطلب: '+fbErr(e))})}
+/* a password reset creates a fresh sign-in (username.N) and points the profile at it; old sign-ins stop matching the profile uid */
+function mkAuth(u,v,pw,tries){var app=firebase.initializeApp(CFG,'aux'+(++AUX)),au=app.auth(),fin=function(){var d=function(){try{app.delete()}catch(e){}};try{au.signOut().then(d,d)}catch(e){d()}};
+  return au.createUserWithEmailAndPassword(mail(u,v),pw).then(function(c){var uid=c.user.uid;fin();return{uid:uid,v:v}},
+    function(e){fin();if(e&&e.code=='auth/email-already-in-use'&&tries<6)return mkAuth(u,v+1,pw,tries+1);throw e})}
+function userCloud(u,pw,prof,msg){if(BUSY)return;BUSY=1;toast('جارٍ الحفظ…');
+  DB.doc('logins/'+u).get().then(function(d){return mkAuth(u,(d.exists?(+d.data().v||0):0)+1,pw,0)})
+  .then(function(r){var bt=DB.batch(),ur=DB.doc('users/'+u);if(prof)bt.set(ur,{name:prof.name,role:prof.role,uid:r.uid});else bt.update(ur,{uid:r.uid});bt.set(DB.doc('logins/'+u),{v:r.v});return bt.commit()})
+  .then(function(){BUSY=0;closeSheet();render();toast(msg)},function(e){BUSY=0;toast('تعذّر الحفظ: '+fbErr(e))})}
+function doSetup(){var a=document.getElementById('sp1').value,b=document.getElementById('sp2').value,le=document.getElementById('le');
+  if(a.length<6){le.textContent='كلمة المرور 6 أحرف على الأقل';return}if(a!=b){le.textContent='كلمتا المرور غير متطابقتين';return}
+  HOLD=1;BOOT='load';LERR='';render();var em=mail('admin',1);S=blank();S.zones=seed().zones;var cfg=JSON.parse(JSON.stringify(cfgData()));
+  FA.createUserWithEmailAndPassword(em,a).catch(function(e){if(e&&e.code=='auth/email-already-in-use')return FA.signInWithEmailAndPassword(em,a);throw e})
+  .then(function(c){var b1=DB.batch();b1.set(DB.doc('users/admin'),{name:'مدير النظام',role:'admin',uid:c.user.uid});b1.set(DB.doc('logins/admin'),{v:1});return b1.commit()})
+  .then(function(){return Promise.all([DB.doc('meta/config').get(),DB.doc('meta/counter').get()])})
+  .then(function(r){var b2=DB.batch(),n=0;if(!r[0].exists){b2.set(DB.doc('meta/config'),cfg);n++}if(!r[1].exists){b2.set(DB.doc('meta/counter'),{next:1001});n++}return n?b2.commit():null})
+  .then(function(){HOLD=0;enter(FA.currentUser)},function(e){HOLD=0;var c=String((e&&e.code)||'');
+    LERR=/email-already-in-use|wrong-password|invalid-credential|invalid-login/.test(c)?'حساب المدير أُنشئ من قبل. استخدم نفس كلمة المرور التي اخترتها أول مرة':fbErr(e);
+    BOOT=c=='permission-denied'?'rules':'setup';render();FA.signOut()})}
+function vBoot(){var top='<div class="lhero"><div class="in lh">'+logo(76)+'<h1>عين الفرس</h1></div></div><div class="in lbody">';
+  if(BOOT=='setup')return top+'<form class="card lform" onsubmit="event.preventDefault();doSetup()"><h2 class="ct">إعداد أول مرة</h2><p class="mu">اختر كلمة مرور لحساب المدير. اسم المستخدم للمدير هو admin.</p>'+
+    '<div class="f"><label for="sp1">كلمة مرور المدير</label><input id="sp1" type="password" dir="ltr" autocomplete="new-password"></div><div class="f"><label for="sp2">تأكيد كلمة المرور</label><input id="sp2" type="password" dir="ltr" autocomplete="new-password"></div>'+
+    '<div id="le" class="err" role="alert">'+esc(LERR)+'</div><button class="btn pri big block" type="submit">إنشاء حساب المدير</button></form></div>';
+  if(BOOT=='rules'||BOOT=='err')return top+'<div class="card lform"><h2 class="ct">'+(BOOT=='rules'?'قاعدة البيانات غير جاهزة':'تعذّر الاتصال')+'</h2><p class="mu">'+(LERR?esc(LERR):BOOT=='rules'?'قواعد الأمان في Firestore غير منشورة بعد. انشرها ثم أعد المحاولة.':'تحقق من اتصال الإنترنت ثم أعد المحاولة.')+'</p><button type="button" class="btn pri big block" onclick="location.reload()">إعادة المحاولة</button></div></div>';
+  return top+'<div class="card lform" style="justify-items:center"><p class="mu">جارٍ التحميل…</p></div></div>'}
+document.addEventListener('focusout',function(){if(!CLOUD)return;setTimeout(function(){if(STALE&&U&&!BOOT&&calm()){STALE=0;render()}},80)});
+
+window.addEventListener('storage',function(e){if(CLOUD||e.key!=K||!e.newValue)return;var d;try{d=JSON.parse(e.newValue)}catch(x){return}
   S=d;if(U){U=usr(U.u)||null}var ae=document.activeElement,busy=SH||(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));if(!busy||!U){closeSheet();render()}});
-S=load();autoClose();
-try{var su=localStorage.getItem('af_u');U=S.users.filter(function(a){return a.u==su})[0]||null;
-  if(U){T=home(U.role);var st=localStorage.getItem('af_t');if(TABS[U.role].some(function(x){return x[0]==st}))T=st}}catch(e){}
-render();
+if(CLOUD){S=blank();render();cloudInit()}
+else{S=load();autoClose();
+  try{var su=localStorage.getItem('af_u');U=S.users.filter(function(a){return a.u==su})[0]||null;
+    if(U){T=home(U.role);var st=localStorage.getItem('af_t');if(TABS[U.role].some(function(x){return x[0]==st}))T=st}}catch(e){}
+  render()}
 </script>
 </body>
 </html>

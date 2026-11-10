@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Sign-in emails look like "username.N@..." ; the profile in /users/{username} holds the uid that is currently valid.
+    function em() { return request.auth.token.email.split('@')[0]; }
+    function me() { return em().split('[.]')[0]; }
+    function prof() { return get(/databases/$(database)/documents/users/$(me())).data; }
+    function ok() { return request.auth != null && prof().uid == request.auth.uid; }
+    function isAdmin() { return ok() && prof().role == 'admin'; }
+    function isStore() { return ok() && prof().role == 'store'; }
+    function isDriver() { return ok() && prof().role == 'driver'; }
+    function firstAdmin(u) { return request.auth != null && u == 'admin' && em() == 'admin.1'; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function zoneFee() { return get(/databases/$(database)/documents/meta/config).data.fees[request.resource.data.zone]; }
+    function storeOrderOk() {
+      return request.resource.data.store == me()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.driver == ''
+        && request.resource.data.ar == ''
+        && request.resource.data.cod is number
+        && request.resource.data.cod >= 0
+        && request.resource.data.fee == zoneFee();
+    }
+
+    // username -> current sign-in number. Readable before sign-in so the app can build the sign-in email.
+    match /logins/{u} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if firstAdmin(u) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /users/{u} {
+      allow read: if ok();
+      allow create: if (firstAdmin(u) && request.resource.data.role == 'admin' && request.resource.data.uid == request.auth.uid) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /meta/config {
+      allow read: if ok();
+      allow write: if isAdmin();
+    }
+
+    match /meta/counter {
+      allow read: if ok();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isStore() && request.resource.data.next == resource.data.next + 1 && changed().hasOnly(['next']));
+    }
+
+    match /orders/{id} {
+      allow read: if isAdmin()
+        || (isStore() && resource.data.store == me())
+        || (isDriver() && resource.data.driver == me());
+
+      allow create: if isAdmin()
+        || (isStore() && storeOrderOk() && request.resource.data.id == id
+            && request.resource.data.keys().hasOnly(['id','store','cust','phone','addr','map','note','zone','zname','cod','fee','comm','drv','status','driver','ar','ts','log']));
+
+      allow update: if isAdmin()
+        // store edits its own order before it leaves for delivery
+        || (isStore() && resource.data.store == me() && resource.data.status == 'pending' && storeOrderOk()
+            && changed().hasOnly(['cust','phone','addr','map','note','zone','zname','cod','fee','comm','drv','log']))
+        // store confirms it received a returned parcel from the office
+        || (isStore() && resource.data.store == me() && resource.data.status == 'atoffice' && request.resource.data.status == 'returned'
+            && changed().hasOnly(['status','rfee','rcomm','rdrv','log']))
+        // driver marks its own task delivered or failed
+        || (isDriver() && resource.data.driver == me() && resource.data.status == 'out' && request.resource.data.status in ['delivered','failed']
+            && changed().hasOnly(['status','reason','log']));
+
+      allow delete: if isAdmin() || (isStore() && resource.data.store == me() && resource.data.status == 'pending');
+    }
+
+    match /setl/{id} {
+      allow read: if isAdmin() || (ok() && resource.data.u == me());
+      allow write: if isAdmin();
+    }
+
+    match /archive/{id} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
