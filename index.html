@@ -313,7 +313,7 @@ tfoot td{border-top:2px solid var(--line);border-bottom:0;font-weight:700}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 document.documentElement.lang='ar';document.documentElement.dir='rtl';
-var CFG={"apiKey": "AIzaSyABESNfnKtYAlXSkX6ELOuWBwI6s12xYXI", "authDomain": "ain-al-faras.firebaseapp.com", "projectId": "ain-al-faras", "storageBucket": "ain-al-faras.firebasestorage.app", "messagingSenderId": "415713701868", "appId": "1:415713701868:web:0a76496b7295804ed5dac9"};
+var CFG={"apiKey": "AIzaSyABESNfnKtYAlXSkX6ELOuWBwI6s12xYXI", "authDomain": "ain-al-faras.firebaseapp.com", "projectId": "ain-al-faras", "storageBucket": "ain-al-faras.firebasestorage.app", "messagingSenderId": "415713701868", "appId": "1:415713701868:web:0a76496b7295804ed5dac9"},VER='261110.0848';
 var CLOUD=!!CFG,K='af_v1',U=null,T='',S,Q='',F='',HL='',ENTER=0,SH=null;
 var ST={pending:'قيد الانتظار',out:'في الطريق',delivered:'تم التسليم',failed:'فشل التسليم',atoffice:'راجع في المكتب',returned:'أُرجع للمتجر'};
 var RK={pending:0,failed:1,atoffice:2,out:3,delivered:4,returned:5};
@@ -454,7 +454,7 @@ function login(){var u=document.getElementById('lu').value.trim(),p=document.get
   if(CLOUD){u=u.toLowerCase();LERR='';if(!/^[a-z0-9_-]{1,30}$/.test(u)||!p){le.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return}
     if(BUSY)return;BUSY=1;le.textContent='';var bt=document.querySelector('.lform button[type=submit]');if(bt){bt.disabled=true;bt.textContent='جارٍ الدخول…'}
     DB.doc('logins/'+u).get().then(function(d){if(!d.exists)throw{code:'auth/invalid-credential'};return FA.signInWithEmailAndPassword(mail(u,d.data().v),p)})
-    .then(function(){BUSY=0},function(e){BUSY=0;var x=document.getElementById('le'),b2=document.querySelector('.lform button[type=submit]');if(x)x.textContent=fbErr(e);if(b2){b2.disabled=false;b2.textContent='دخول'}});return}
+    .then(function(){BUSY=0;DERR=''},function(e){BUSY=0;dbg(e);var x=document.getElementById('le'),b2=document.querySelector('.lform button[type=submit]');if(x)x.textContent=fbErr(e);if(b2){b2.disabled=false;b2.textContent='دخول'}});return}
   var x=S.users.filter(function(a){return a.u.toLowerCase()==u.toLowerCase()&&a.p==p})[0];
   if(!x){le.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';return}
   U=x;autoClose();try{localStorage.setItem('af_u',x.u)}catch(e){}
@@ -691,7 +691,7 @@ function vLogin(){return '<div class="lhero"><div class="in lh">'+logo(76)+'<h1>
 '<div class="f"><label for="lu">اسم المستخدم</label><input id="lu" dir="ltr" autocomplete="username" autocapitalize="none" spellcheck="false"></div>'+
 '<div class="f"><label for="lp">كلمة المرور</label><div class="pw"><input id="lp" type="password" dir="ltr" autocomplete="current-password"><button type="button" class="eye" id="eyeb" aria-label="إظهار كلمة المرور" onclick="togglePw()">'+ic('eye',20)+'</button></div></div>'+
 '<div id="le" class="err" role="alert">'+esc(LERR)+'</div><button class="btn pri big block" type="submit">دخول</button></form>'+
-(!isDemo()?'</div>':'<div class="demo"><span class="mu">حسابات تجريبية، اضغط لتعبئة البيانات</span><div class="row">'+
+(!isDemo()?(CLOUD?foot():'')+'</div>':'<div class="demo"><span class="mu">حسابات تجريبية، اضغط لتعبئة البيانات</span><div class="row">'+
 '<button type="button" class="chp" data-u="admin" data-p="admin123" onclick="fill(this.dataset.u,this.dataset.p)">مدير</button>'+
 '<button type="button" class="chp" data-u="store1" data-p="1234" onclick="fill(this.dataset.u,this.dataset.p)">متجر</button>'+
 '<button type="button" class="chp" data-u="driver1" data-p="1234" onclick="fill(this.dataset.u,this.dataset.p)">مندوب</button></div></div></div>')}
@@ -779,9 +779,11 @@ document.getElementById('app').addEventListener('click',function(e){
   if(!c||e.target.closest('select,button,a,input,textarea,label'))return;
   showOrder(c.dataset.oid)});
 /* ---- cloud mode: Firebase Auth + Firestore. CFG is injected by the standalone build; without it the page is a local demo ---- */
-var FA=null,DB=null,UN=[],RD={},PEND=[],SHD={o:{},cfg:'',ok:0,ar:{},st:{}},STALE=0,HOLD=0,BUSY=0,AUX=0,VF=0,BOOT=CLOUD?'boot':'',LERR='',LIVE={orders:1,fin:1,arch:1,mine:1,tasks:1};
+var FA=null,DB=null,UN=[],RD={},PEND=[],SHD={o:{},cfg:'',ok:0,ar:{},st:{}},STALE=0,HOLD=0,BUSY=0,AUX=0,VF=0,DERR='',BOOT=CLOUD?'boot':'',LERR='',LIVE={orders:1,fin:1,arch:1,mine:1,tasks:1};
 function blank(){return{users:[],zones:[],orders:[],archive:[],setl:[],next:1001,period:ym(new Date()),closedFor:'',retPct:0}}
 function mail(u,v){return u+'.'+v+'@'+CFG.authDomain}
+function dbg(e){DERR=e?String(e.code||'')+' | '+String(e.message||e).slice(0,220):''}
+function foot(){return '<p class="mu" dir="ltr" style="text-align:center;font-size:11.5px;word-break:break-word">'+esc((VER?'v'+VER:'')+(DERR?'  ·  '+DERR:''))+'</p>'}
 function fbErr(e){var c=String((e&&e.code)||'');
   if(/network|unavailable|offline/.test(c))return 'لا يوجد اتصال بالإنترنت';
   if(/permission-denied/.test(c))return 'لا تملك صلاحية هذه العملية';
@@ -796,20 +798,20 @@ function mergeList(cur,docs,key){var by={};cur.forEach(function(o){by[o[key]]=o}
   return docs.map(function(d){var o=by[d[key]];if(!o)return d;Object.keys(o).forEach(function(k){if(!(k in d))delete o[k]});Object.keys(d).forEach(function(k){o[k]=d[k]});return o})}
 function cloudInit(){
   try{firebase.initializeApp(CFG);FA=firebase.auth();DB=firebase.firestore();DB.enablePersistence({synchronizeTabs:true}).catch(function(){})}
-  catch(e){BOOT='err';render();return}
+  catch(e){dbg(e);BOOT='err';render();return}
   FA.onAuthStateChanged(function(fu){if(HOLD)return;if(fu)enter(fu);else leave()})}
 function detach(){UN.forEach(function(f){try{f()}catch(e){}});UN=[];RD={};PEND=[];SHD={o:{},cfg:'',ok:0,ar:{},st:{}}}
 function leave(){detach();closeSheet();U=null;S=blank();BUSY=0;var known=0;try{known=localStorage.getItem('af_live')=='1'}catch(e){}
   if(known){BOOT='';render();return}
   DB.doc('logins/admin').get().then(function(d){if(d.exists){try{localStorage.setItem('af_live','1')}catch(e){}BOOT=''}else BOOT='setup';render()},
-    function(e){var c=e&&e.code;if(c=='permission-denied')BOOT='rules';else if(c=='not-found'){BOOT='rules';LERR='قاعدة بيانات Firestore لم تُنشأ بعد في مشروع Firebase.'}else BOOT='';render()})}
+    function(e){var c=e&&e.code;dbg(e);if(c=='permission-denied')BOOT='rules';else if(c=='not-found'){BOOT='rules';LERR='قاعدة بيانات Firestore لم تُنشأ بعد في مشروع Firebase.'}else BOOT='';render()})}
 function enter(fu){BOOT='load';render();var name=String(fu.email||'').split('@')[0].split('.')[0];
   DB.doc('users/'+name).get().then(function(d){var x=d.exists?d.data():null;if(!x||x.uid!=fu.uid)throw{code:'af/off'};
     try{localStorage.setItem('af_live','1')}catch(e){}
     U={u:name,name:x.name,role:x.role,uid:x.uid};S=blank();S.users=[U];T=home(U.role);
     try{var st=localStorage.getItem('af_t');if(TABS[U.role].some(function(q){return q[0]==st}))T=st}catch(e){}
     Q='';F='';attach()})
-  .catch(function(e){var c=e&&e.code;if(c=='af/off'||c=='permission-denied')kick();else{BOOT='err';render()}})}
+  .catch(function(e){var c=e&&e.code;dbg(e);if(c=='af/off'||c=='permission-denied')kick();else{BOOT='err';render()}})}
 function attach(){detach();var r=U.role,me=U.u,C=function(n){return DB.collection(n)},q=C('orders').where('ar','==','');
   if(r=='store')q=C('orders').where('store','==',me).where('ar','==','');
   if(r=='driver')q=C('orders').where('driver','==',me).where('ar','==','');
@@ -865,14 +867,14 @@ function doSetup(){var a=document.getElementById('sp1').value,b=document.getElem
   .then(function(c){var b1=DB.batch();b1.set(DB.doc('users/admin'),{name:'مدير النظام',role:'admin',uid:c.user.uid});b1.set(DB.doc('logins/admin'),{v:1});return b1.commit()})
   .then(function(){return Promise.all([DB.doc('meta/config').get(),DB.doc('meta/counter').get()])})
   .then(function(r){var b2=DB.batch(),n=0;if(!r[0].exists){b2.set(DB.doc('meta/config'),cfg);n++}if(!r[1].exists){b2.set(DB.doc('meta/counter'),{next:1001});n++}return n?b2.commit():null})
-  .then(function(){HOLD=0;enter(FA.currentUser)},function(e){HOLD=0;var c=String((e&&e.code)||'');
+  .then(function(){HOLD=0;DERR='';enter(FA.currentUser)},function(e){HOLD=0;dbg(e);var c=String((e&&e.code)||'');
     LERR=/email-already-in-use|wrong-password|invalid-credential|invalid-login/.test(c)?'حساب المدير أُنشئ من قبل. استخدم نفس كلمة المرور التي اخترتها أول مرة':fbErr(e);
     BOOT=c=='permission-denied'?'rules':'setup';render();FA.signOut()})}
 function vBoot(){var top='<div class="lhero"><div class="in lh">'+logo(76)+'<h1>عين الفرس</h1></div></div><div class="in lbody">';
   if(BOOT=='setup')return top+'<form class="card lform" onsubmit="event.preventDefault();doSetup()"><h2 class="ct">إعداد أول مرة</h2><p class="mu">اختر كلمة مرور لحساب المدير. اسم المستخدم للمدير هو admin.</p>'+
     '<div class="f"><label for="sp1">كلمة مرور المدير</label><input id="sp1" type="password" dir="ltr" autocomplete="new-password"></div><div class="f"><label for="sp2">تأكيد كلمة المرور</label><input id="sp2" type="password" dir="ltr" autocomplete="new-password"></div>'+
-    '<div id="le" class="err" role="alert">'+esc(LERR)+'</div><button class="btn pri big block" type="submit">إنشاء حساب المدير</button></form></div>';
-  if(BOOT=='rules'||BOOT=='err')return top+'<div class="card lform"><h2 class="ct">'+(BOOT=='rules'?'قاعدة البيانات غير جاهزة':'تعذّر الاتصال')+'</h2><p class="mu">'+(LERR?esc(LERR):BOOT=='rules'?'قواعد الأمان في Firestore غير منشورة بعد. انشرها ثم أعد المحاولة.':'تحقق من اتصال الإنترنت ثم أعد المحاولة.')+'</p><button type="button" class="btn pri big block" onclick="location.reload()">إعادة المحاولة</button></div></div>';
+    '<div id="le" class="err" role="alert">'+esc(LERR)+'</div><button class="btn pri big block" type="submit">إنشاء حساب المدير</button></form>'+foot()+'</div>';
+  if(BOOT=='rules'||BOOT=='err')return top+'<div class="card lform"><h2 class="ct">'+(BOOT=='rules'?'قاعدة البيانات غير جاهزة':'تعذّر الاتصال')+'</h2><p class="mu">'+(LERR?esc(LERR):BOOT=='rules'?'قواعد الأمان في Firestore غير منشورة بعد. انشرها ثم أعد المحاولة.':'تحقق من اتصال الإنترنت ثم أعد المحاولة.')+'</p><button type="button" class="btn pri big block" onclick="location.reload()">إعادة المحاولة</button></div>'+foot()+'</div>';
   return top+'<div class="card lform" style="justify-items:center"><p class="mu">جارٍ التحميل…</p></div></div>'}
 document.addEventListener('focusout',function(){if(!CLOUD)return;setTimeout(function(){if(STALE&&U&&!BOOT&&calm()){STALE=0;render()}},80)});
 
