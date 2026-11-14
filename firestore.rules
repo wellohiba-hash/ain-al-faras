@@ -22,6 +22,11 @@ service cloud.firestore {
         && request.resource.data.cod >= 0
         && request.resource.data.fee == zoneFee();
     }
+    // the store never sets the office commission; only the admin types it. The store may only clear it (zone change).
+    function commOk() {
+      return (request.resource.data.comm == null || request.resource.data.comm == resource.data.comm)
+        && (request.resource.data.drv == null || request.resource.data.drv == resource.data.drv);
+    }
 
     // username -> current sign-in number. Readable before sign-in so the app can build the sign-in email.
     match /logins/{u} {
@@ -55,15 +60,16 @@ service cloud.firestore {
 
       allow create: if isAdmin()
         || (isStore() && storeOrderOk() && request.resource.data.id == id
+            && request.resource.data.comm == null && request.resource.data.drv == null
             && request.resource.data.keys().hasOnly(['id','store','cust','phone','addr','map','note','zone','zname','cod','fee','comm','drv','status','driver','ar','ts','log']));
 
       allow update: if isAdmin()
         // store edits its own order before it leaves for delivery
-        || (isStore() && resource.data.store == me() && resource.data.status == 'pending' && storeOrderOk()
+        || (isStore() && resource.data.store == me() && resource.data.status == 'pending' && storeOrderOk() && commOk()
             && changed().hasOnly(['cust','phone','addr','map','note','zone','zname','cod','fee','comm','drv','log']))
-        // store confirms it received a returned parcel from the office
+        // store confirms it received a returned parcel from the office (returns carry no fee or commission)
         || (isStore() && resource.data.store == me() && resource.data.status == 'atoffice' && request.resource.data.status == 'returned'
-            && changed().hasOnly(['status','rfee','rcomm','rdrv','log']))
+            && changed().hasOnly(['status','log']))
         // driver marks its own task delivered or failed
         || (isDriver() && resource.data.driver == me() && resource.data.status == 'out' && request.resource.data.status in ['delivered','failed']
             && changed().hasOnly(['status','reason','log']));
