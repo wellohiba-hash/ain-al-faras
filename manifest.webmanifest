@@ -1,5 +1,5 @@
 {
- "name": "عين الفرس",
+ "name": "شركة عين الفرس",
  "short_name": "عين الفرس",
  "description": "إدارة توصيل المتاجر الإلكترونية",
  "lang": "ar",
@@ -7,8 +7,8 @@
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
- "background_color": "#0E3B30",
- "theme_color": "#0E3B30",
+ "background_color": "#FFF9ED",
+ "theme_color": "#FFF9ED",
  "icons": [
   {
    "src": "icon-192.png",

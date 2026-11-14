@@ -1,6 +1,6 @@
 /* Ain Al-Faras app shell cache: lets the installed app open with no connection.
    Data sync is handled by Firestore itself; this file never touches API calls. */
-const V = 'af-shell-1';
+const V = 'af-shell-2';
 const SHELL = ['./', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
